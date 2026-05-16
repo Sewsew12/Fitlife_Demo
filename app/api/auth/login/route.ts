@@ -13,11 +13,19 @@ export async function POST(req: NextRequest) {
 
     const supabase = getDb();
 
-    const { data: user } = await supabase
+    const { data: user, error: dbErr } = await supabase
       .from('demo_users')
       .select('id, name, email, password_hash')
       .eq('email', email.toLowerCase())
       .maybeSingle();
+
+    if (dbErr) {
+      console.error('login db error', dbErr);
+      const msg = dbErr.message.includes('does not exist')
+        ? 'Database not set up yet. Run supabase/schema.sql in your Supabase SQL Editor.'
+        : dbErr.message;
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });

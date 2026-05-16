@@ -16,11 +16,19 @@ export async function POST(req: NextRequest) {
 
     const supabase = getDb();
 
-    const { data: existing } = await supabase
+    const { data: existing, error: checkErr } = await supabase
       .from('demo_users')
       .select('id')
       .eq('email', email.toLowerCase())
       .maybeSingle();
+
+    if (checkErr) {
+      console.error('signup check error', checkErr);
+      const msg = checkErr.message.includes('does not exist')
+        ? 'Database not set up yet. Run supabase/schema.sql in your Supabase SQL Editor first.'
+        : checkErr.message;
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
 
     if (existing) {
       return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 409 });
@@ -36,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     if (error || !user) {
       console.error('signup db error', error);
-      return NextResponse.json({ error: 'Could not create account.' }, { status: 500 });
+      return NextResponse.json({ error: error?.message ?? 'Could not create account.' }, { status: 500 });
     }
 
     const token = await createSession({ userId: user.id, email: user.email, name: user.name });
